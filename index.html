@@ -222,15 +222,25 @@
   <div class="form-card" id="formArea">
     <h2>Get AI Signals — free</h2>
     <p>Join readers from charities, SMEs, and public-sector organisations.</p>
-    <div class="input-row">
-      <input type="email" id="emailInput" placeholder="your@email.com" required>
-      <button id="subscribeBtn">Subscribe</button>
-    </div>
+    <form id="signupForm"
+          action="https://a088485a.sibforms.com/serve/MUIFAPx9XpPUsBaTFwUDSl8mV3RqTswI0UwrAS0hNvTMje0kmXyuWLOYYXnqI2mHT7rEw9P1rRR1boy1cv8UuDuR3MiNF0TQcIH7l-INWxJAHN3I7Kz0UhoNRQf1jIbpsaX8gAk3MzsCFniO0gAzOgIJqlSJsGmGxKsphbUJe_cny7PJxmkDakpDUesahcb0tCsAlhFZEO946EMESg=="
+          method="POST"
+          target="brevoTarget"
+          novalidate>
+      <div class="input-row">
+        <input type="email" name="EMAIL" id="emailInput" placeholder="your@email.com" autocomplete="email" required>
+        <button type="submit" id="subscribeBtn">Subscribe</button>
+      </div>
+      <!-- Brevo anti-bot honeypot: must remain empty -->
+      <input type="text" name="email_address_check" value="" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;">
+      <input type="hidden" name="locale" value="en">
+    </form>
     <div class="error-message" id="errorMsg"></div>
     <div class="privacy-note">
       We use Brevo as our marketing platform. By subscribing you agree that your data will be transferred to Brevo for processing. <a href="https://www.brevo.com/en/legal/privacypolicy/" target="_blank" rel="noopener">Brevo's Privacy Policy</a>.
     </div>
   </div>
+  <iframe name="brevoTarget" id="brevoTarget" title="Subscribe" style="display:none;width:0;height:0;border:0;"></iframe>
 
   <div class="success-message" id="successMsg">
     <div class="check">✅</div>
@@ -248,49 +258,34 @@
 </div>
 
 <script>
-  // Brevo form configuration
-  const FORM_URL = 'https://a088485a.sibforms.com/serve/MUIFAPx9XpPUsBaTFwUDSl8mV3RqTswI0UwrAS0hNvTMje0kmXyuWLOYYXnqI2mHT7rEw9P1rRR1boy1cv8UuDuR3MiNF0TQcIH7l-INWxJAHN3I7Kz0UhoNRQf1jIbpsaX8gAk3MzsCFniO0gAzOgIJqlSJsGmGxKsphbUJe_cny7PJxmkDakpDUesahcb0tCsAlhFZEO946EMESg';
+  // The form does a real native POST to Brevo (target = hidden iframe), which is
+  // Brevo's documented capture pattern and reliably registers the contact.
+  // We only validate client-side, then reveal the success state once the iframe
+  // confirms the POST round-tripped.
+  const form = document.getElementById('signupForm');
+  const errorEl = document.getElementById('errorMsg');
+  const btn = document.getElementById('subscribeBtn');
+  let submitted = false;
 
-  document.getElementById('subscribeBtn').addEventListener('click', async () => {
-    const email = document.getElementById('emailInput').value.trim();
-    const errorEl = document.getElementById('errorMsg');
+  form.addEventListener('submit', (e) => {
     errorEl.style.display = 'none';
-
+    const email = document.getElementById('emailInput').value.trim();
     if (!email || !email.includes('@')) {
+      e.preventDefault();
       errorEl.textContent = 'Please enter a valid email address.';
       errorEl.style.display = 'block';
       return;
     }
-
-    const btn = document.getElementById('subscribeBtn');
+    submitted = true;
     btn.textContent = 'Subscribing…';
     btn.disabled = true;
-
-    try {
-      // Submit via Brevo's form endpoint with a hidden iframe to avoid CORS issues
-      const formData = new FormData();
-      formData.append('EMAIL', email);
-
-      const resp = await fetch(FORM_URL, {
-        method: 'POST',
-        body: formData,
-        mode: 'no-cors'
-      });
-
-      // no-cors means we can't read the response — but Brevo returns success
-      document.getElementById('formArea').style.display = 'none';
-      document.getElementById('successMsg').style.display = 'block';
-    } catch (e) {
-      errorEl.textContent = 'Something went wrong. Please try again or email us directly.';
-      errorEl.style.display = 'block';
-      btn.textContent = 'Subscribe';
-      btn.disabled = false;
-    }
   });
 
-  // Allow Enter key to submit
-  document.getElementById('emailInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') document.getElementById('subscribeBtn').click();
+  // Hidden iframe fires 'load' after Brevo responds to the POST.
+  document.getElementById('brevoTarget').addEventListener('load', () => {
+    if (!submitted) return; // ignore the iframe's initial blank load
+    document.getElementById('formArea').style.display = 'none';
+    document.getElementById('successMsg').style.display = 'block';
   });
 </script>
 </body>
